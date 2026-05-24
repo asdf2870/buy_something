@@ -252,6 +252,7 @@ input[type=color]{width:40px;height:40px;padding:3px;border-radius:8px;border:0.
         <div class="form-row"><label>數量</label><input type="number" id="b-qty" min="1" inputmode="numeric" value="1"></div>
         <div class="form-row"><label>金額（NT$）</label><input type="number" id="b-amount" min="0" inputmode="numeric"></div>
       </div>
+      <div class="form-row"><label>品牌／口味（選填，自動存入品牌筆記）</label><input type="text" id="b-brand" placeholder="e.g. 花王、原味"></div>
       <div class="form-row"><label>備註（選填）</label><input type="text" id="b-note" placeholder="e.g. 特價、買二送一"></div>
     </div>
     <div class="modal-footer">
@@ -629,41 +630,55 @@ function exportShopping(){
 function openBuyModal(){
   document.getElementById('b-date').value=new Date().toISOString().slice(0,10);
   document.getElementById('b-src').innerHTML=DATA.sources.map(s=>`<option>${s}</option>`).join('');
-  ['b-item','b-note'].forEach(i=>document.getElementById(i).value='');
+  ['b-item','b-brand','b-note'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('b-qty').value='1';
   document.getElementById('b-amount').value='';
   document.getElementById('buyModal').classList.add('open');
 }
 function saveBuy(){
-  const item=document.getElementById('b-item').value.trim();
+  const itemName=document.getElementById('b-item').value.trim();
   const amount=parseInt(document.getElementById('b-amount').value)||0;
-  if(!item){alert('請填物品名稱');return}
+  if(!itemName){alert('請填物品名稱');return}
+  const brandName=document.getElementById('b-brand').value.trim();
+  const qty=parseInt(document.getElementById('b-qty').value)||1;
+  const src=document.getElementById('b-src').value;
   const obj={
     id:nextCostId++,
     date:document.getElementById('b-date').value,
-    src:document.getElementById('b-src').value,
-    item,qty:parseInt(document.getElementById('b-qty').value)||1,
-    amount,note:document.getElementById('b-note').value.trim()
+    src,item:itemName,qty,amount,
+    note:brandName?`品牌：${brandName}`:document.getElementById('b-note').value.trim()
   };
   if(!Array.isArray(DATA.costs))DATA.costs=[];
   DATA.costs.unshift(obj);
-  const matched=DATA.items.find(i=>i.name===item);
+  // find or create item
+  let matched=DATA.items.find(i=>i.name===itemName);
   if(matched){
-    matched.qty+=obj.qty;
-    showToast('已記錄並更新庫存');
+    matched.qty+=qty;
   } else {
-    // 自動新增品項
     const defaultCat=DATA.cats.length?DATA.cats[0].name:'其他';
-    const newItem={
-      id:nextItemId++,name:item,
-      cat:defaultCat,unit:'個',
-      qty:obj.qty,min:1,reorder:null,
-      sources:obj.src?[obj.src]:[],brands:[]
-    };
-    DATA.items.push(newItem);
-    showToast(`已記錄並新增品項「${item}」`);
+    matched={id:nextItemId++,name:itemName,cat:defaultCat,unit:'個',qty,min:1,reorder:null,sources:src?[src]:[],brands:[]};
+    DATA.items.push(matched);
+  }
+  // auto save brand note
+  if(brandName){
+    if(!Array.isArray(matched.brands))matched.brands=[];
+    const unitPrice=qty>0&&amount>0?Math.round(amount/qty):null;
+    const existing=matched.brands.find(b=>b.name===brandName);
+    if(existing){
+      if(unitPrice!=null)existing.price=unitPrice;
+    } else {
+      matched.brands.push({
+        name:brandName,price:unitPrice,src,
+        star:null,pros:'',cons:'',
+        note:`${new Date().toLocaleDateString('zh-TW')} 自動新增`
+      });
+    }
   }
   save();closeModal('buyModal');
+  const msg=brandName
+    ?`已記錄，品牌「${brandName}」已存入品牌筆記`
+    :matched?'已記錄並更新庫存':`已記錄並新增品項「${itemName}」`;
+  showToast(msg);
   if(currentPage==='cost')renderCost();
   if(currentPage==='inv')renderInv();
   if(currentPage==='shop')renderShop();
