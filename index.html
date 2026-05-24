@@ -587,6 +587,7 @@ function delItem(id){if(!confirm('確定刪除？'))return;DATA.items=DATA.items
 
 // ── Shopping ─────────────────────────────────────────────────────────────
 let shopTab='need'; // 'need' | 'ok'
+let shopSearchQ='';
 
 function renderShop(c){
   if(!c)c=document.getElementById('mainContent');
@@ -594,11 +595,15 @@ function renderShop(c){
   const okItems=DATA.items.filter(i=>itemStatus(i)==='ok');
   const list=shopTab==='need'?need:okItems;
   const allSrcs=['all',...new Set(need.flatMap(i=>toArr(i.sources)))];
-  const shown=activeSrc==='all'?list:list.filter(i=>toArr(i.sources).includes(activeSrc));
+  const shown=(activeSrc==='all'?list:list.filter(i=>toArr(i.sources).includes(activeSrc))).filter(i=>!shopSearchQ||i.name.includes(shopSearchQ));
   const byCat={};
   shown.forEach(i=>{if(!byCat[i.cat])byCat[i.cat]=[];byCat[i.cat].push(i)});
 
   c.innerHTML=`
+    <div style="position:relative;margin-bottom:10px">
+      <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;pointer-events:none"></i>
+      <input type="text" id="shopSearch" placeholder="搜尋品項…" value="${shopSearchQ}" oninput="setShopSearch(this.value)" style="padding-left:36px;background:var(--surface);border-color:var(--border)">
+    </div>
     <div style="display:flex;gap:3px;background:var(--surface2);padding:3px;border-radius:12px;margin-bottom:12px">
       <button class="shop-mode-btn ${shopTab==='need'?'active':''}" onclick="setShopTab('need')">
         需補貨 ${need.length>0?`<span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px">${need.length}</span>`:''}
@@ -615,6 +620,7 @@ function renderShop(c){
         ${list.map(item=>shopCard(item,shopTab==='ok')).join('')}`).join('')}`;
 }
 function setShopTab(t){shopTab=t;renderShop()}
+function setShopSearch(q){shopSearchQ=q;renderShop()}
 function shopCard(item,isOk){
   const s=itemStatus(item);
   const suggest=item.reorder?item.reorder:item.min+1;
@@ -683,6 +689,7 @@ function updateShopWeightHint(id){
   const twdAmt=shopCnyModes[id]?amt*cnyRate:amt;
   if(w>0&&twdAmt>0&&qty>0){
     const per100=Math.round(twdAmt/qty/(w/100));
+    const per100=Math.round((twdAmt/qty/(w/100))*100)/100;
     hint.textContent=`每百克 NT$${per100}`;
   } else hint.textContent='';
 }
@@ -701,7 +708,7 @@ function doRestock(id){
   if(amount>0){
     if(!Array.isArray(DATA.costs))DATA.costs=[];
     const unitPrice=qty>0&&amount>0?Math.round(amount/qty):null;
-    const per100g=weight&&amount&&qty?Math.round(amount/qty/(weight/100)):null;
+    const per100g=weight&&amount&&qty?Math.round((amount/qty/(weight/100))*100)/100:null;
     DATA.costs.unshift({id:nextCostId++,date:new Date().toISOString().slice(0,10),src,item:item.name,brand:brandName||'',qty,amount,weight:weight||null,unitPrice,per100g,note:brandName?`品牌：${brandName}`:'購物清單補貨'});
   }
   if(brandName){
@@ -755,7 +762,7 @@ function updateWeightHint(prefix){
   const hint=document.getElementById(prefix+'-weight-hint');
   if(!hint)return;
   const twdAmt=bCnyMode?amt*cnyRate:amt;
-  if(w>0&&twdAmt>0&&qty>0){hint.style.display='block';hint.textContent=`每百克 NT$ ${Math.round(twdAmt/qty/(w/100))}`;}
+  if(w>0&&twdAmt>0&&qty>0){hint.style.display='block';hint.textContent=`每百克 NT$ ${Math.round((twdAmt/qty/(w/100))*100)/100}`;}
   else hint.style.display='none';
 }
 
@@ -832,7 +839,7 @@ function saveBuy(){
   const src=document.getElementById('b-src').value;
   const note=document.getElementById('b-note').value.trim();
   const unitPrice=qty>0&&amount>0?Math.round(amount/qty):null;
-  const per100g=weight&&amount&&qty?Math.round(amount/qty/(weight/100)):null;
+  const per100g=weight&&amount&&qty?Math.round((amount/qty/(weight/100))*100)/100:null;
   const obj={id:nextCostId++,date:document.getElementById('b-date').value,src,item:itemName,brand:brandName||'',qty,amount,weight:weight||null,unitPrice,per100g,note:brandName?`品牌：${brandName}`:note};
   if(!Array.isArray(DATA.costs))DATA.costs=[];
   DATA.costs.unshift(obj);
@@ -889,7 +896,7 @@ function renderCost(c){
           <div class="cost-date">${(co.date||'').slice(5)}</div>
           <div class="cost-info">
             <div class="cost-name">${co.item}${co.brand?` <span class="src-tag">${co.brand}</span>`:''} × ${co.qty}</div>
-            <div class="cost-meta">${co.src||''}${co.note&&!co.note.startsWith('品牌：')?' · '+co.note:''}${co.per100g?' · 每百克 NT$'+co.per100g:''}</div>
+            <div class="cost-meta">${co.src||''}${co.note&&!co.note.startsWith('品牌：')?' · '+co.note:''}${co.per100g?' · 每百克 NT$'+(Number.isInteger(co.per100g)?co.per100g:co.per100g.toFixed(2)):''}</div>
           </div>
           <div class="cost-right">
             <div class="cost-amount">NT$ ${(co.amount||0).toLocaleString()}</div>
@@ -1137,7 +1144,7 @@ function renderPurchaseHistory(){
         <div class="purchase-date">${(co.date||'').replace(/^\d{4}-/,'')}</div>
         <div class="purchase-info">
           <div style="font-size:14px;font-weight:500">× ${co.qty} ${item.unit}${co.brand?` <span class="src-tag">${co.brand}</span>`:''}</div>
-          <div style="font-size:12px;color:var(--text3)">${co.src||''}${co.per100g?' · 每百克 NT$'+co.per100g:''}</div>
+          <div style="font-size:12px;color:var(--text3)">${co.src||''}${co.per100g?' · 每百克 NT$'+(Number.isInteger(co.per100g)?co.per100g:co.per100g.toFixed(2)):''}</div>
         </div>
         <div style="text-align:right">
           <div class="purchase-amount">NT$ ${(co.amount||0).toLocaleString()}</div>
@@ -1198,7 +1205,7 @@ Object.assign(window,{
   openBrandAc,closeBrandAc,filterBrandAc,pickBrand,
   renderCost,setCostRange,clearCostRange,delCost,openCostEdit,saveCostEdit,exportCost,
   renderSettings,addCat,addSrc,delSettingItem,startEditName,finishEditName,
-  closeModal,
+  closeModal,setShopSearch,
 });
 </script>
 </body>
