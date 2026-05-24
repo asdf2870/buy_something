@@ -1189,8 +1189,17 @@ function delBrand(idx){
 }
 
 // ── Expose globals ────────────────────────────────────────────────────────
-const G={showPage,chQty,openItemModal,saveItem,delItem,setCatF,setStatusF,openDetail,switchDetailTab,openBrandForm,setStar,saveBrand,delBrand,setSrc,toggleRestock,toggleShopCny,updateShopWeightHint,doRestock,exportShopping,openBuyModal,saveBuy,toggleCny,updateWeightHint,updateCnyHint,openIpList,closeIpList,toggleIpList,filterIpList,pickItem,openBrandAc,closeBrandAc,filterBrandAc,pickBrand,renderCost,setCostRange,clearCostRange,delCost,openCostEdit,saveCostEdit,exportCost,renderSettings,addCat,addSrc,delSettingItem,startEditName,finishEditName,toggleOkSection,toggleItemPicker:toggleIpList};
-Object.assign(window,G);
+Object.assign(window,{
+  showPage,chQty,openItemModal,saveItem,delItem,setCatF,setStatusF,
+  openDetail,switchDetailTab,openBrandForm,setStar,saveBrand,delBrand,
+  setSrc,setShopTab,toggleRestock,toggleShopCny,updateShopWeightHint,doRestock,
+  exportShopping,openBuyModal,saveBuy,toggleCny,updateWeightHint,updateCnyHint,
+  openIpList,closeIpList,toggleIpList,filterIpList,pickItem,
+  openBrandAc,closeBrandAc,filterBrandAc,pickBrand,
+  renderCost,setCostRange,clearCostRange,delCost,openCostEdit,saveCostEdit,exportCost,
+  renderSettings,addCat,addSrc,delSettingItem,startEditName,finishEditName,
+  closeModal,
+});
 </script>
 </body>
 </html>
