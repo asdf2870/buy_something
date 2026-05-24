@@ -688,7 +688,6 @@ function updateShopWeightHint(id){
   if(!hint)return;
   const twdAmt=shopCnyModes[id]?amt*cnyRate:amt;
   if(w>0&&twdAmt>0&&qty>0){
-    const per100=Math.round(twdAmt/qty/(w/100));
     const per100=Math.round((twdAmt/qty/(w/100))*100)/100;
     hint.textContent=`每百克 NT$${per100}`;
   } else hint.textContent='';
