@@ -499,6 +499,10 @@ function renderShop(c){
               <input class="restock-input" type="number" id="ra-${item.id}" min="0" inputmode="numeric" placeholder="金額" style="width:72px">
               <button class="restock-btn" id="rb-${item.id}" onclick="doRestock(${item.id})">✓ 已買到</button>
             </div>
+            <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+              <i class="ti ti-tag" style="font-size:14px;color:var(--text3);flex-shrink:0"></i>
+              <input type="text" id="rbrand-${item.id}" placeholder="品牌／口味（選填，自動存入品牌筆記）" style="flex:1;font-size:13px;padding:6px 10px;border-radius:8px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text)">
+            </div>
           </div>`;
         }).join('')}`).join('')}
     ${shown.length>0?`<div style="margin-top:16px"><button class="btn" style="width:100%;justify-content:center" onclick="restockAll()"><i class="ti ti-checks"></i> 全部已買到</button></div>`:''}
@@ -512,17 +516,35 @@ function doRestock(id){
   const qty=parseInt(document.getElementById('ri-'+id).value)||0;
   if(qty<=0){showToast('請輸入補貨數量');return}
   const amount=parseInt(document.getElementById('ra-'+id).value)||0;
+  const brandName=(document.getElementById('rbrand-'+id)?.value||'').trim();
+  const src=activeSrc==='all'?(item.sources&&item.sources[0]||''):activeSrc;
   // update stock
   item.qty+=qty;
-  // auto log cost if amount filled
+  // auto log cost
   if(amount>0){
     if(!Array.isArray(DATA.costs))DATA.costs=[];
     DATA.costs.unshift({
       id:nextCostId++,
       date:new Date().toISOString().slice(0,10),
-      src:activeSrc==='all'?(item.sources&&item.sources[0]||''):activeSrc,
-      item:item.name,qty,amount,note:'購物清單補貨'
+      src,item:item.name,qty,amount,note:brandName?`品牌：${brandName}`:'購物清單補貨'
     });
+  }
+  // auto save to brand notes
+  if(brandName){
+    if(!Array.isArray(item.brands))item.brands=[];
+    const unitPrice=qty>0&&amount>0?Math.round(amount/qty):null;
+    const existing=item.brands.find(b=>b.name===brandName);
+    if(existing){
+      // update price if amount provided
+      if(unitPrice!=null)existing.price=unitPrice;
+    } else {
+      item.brands.push({
+        name:brandName,
+        price:unitPrice,
+        src,star:null,pros:'',cons:'',
+        note:`${new Date().toLocaleDateString('zh-TW')} 自動新增`
+      });
+    }
   }
   save();
   // mark done visually
@@ -551,18 +573,28 @@ function restockAll(){
   shown.forEach(item=>{
     const qInput=document.getElementById('ri-'+item.id);
     const aInput=document.getElementById('ra-'+item.id);
+    const bInput=document.getElementById('rbrand-'+item.id);
     if(!qInput)return;
     const qty=parseInt(qInput.value)||0;
     const amount=aInput?parseInt(aInput.value)||0:0;
+    const brandName=(bInput?.value||'').trim();
+    const src=activeSrc==='all'?(item.sources&&item.sources[0]||''):activeSrc;
     if(qty>0){
       item.qty+=qty;
       if(amount>0){
         DATA.costs.unshift({
           id:nextCostId++,
           date:new Date().toISOString().slice(0,10),
-          src:activeSrc==='all'?(item.sources&&item.sources[0]||''):activeSrc,
-          item:item.name,qty,amount,note:'購物清單補貨'
+          src,item:item.name,qty,amount,
+          note:brandName?`品牌：${brandName}`:'購物清單補貨'
         });
+      }
+      if(brandName){
+        if(!Array.isArray(item.brands))item.brands=[];
+        const unitPrice=qty>0&&amount>0?Math.round(amount/qty):null;
+        const existing=item.brands.find(b=>b.name===brandName);
+        if(existing){if(unitPrice!=null)existing.price=unitPrice;}
+        else item.brands.push({name:brandName,price:unitPrice,src,star:null,pros:'',cons:'',note:`${new Date().toLocaleDateString('zh-TW')} 自動新增`});
       }
       count++;
     }
