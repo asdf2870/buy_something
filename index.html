@@ -602,7 +602,7 @@ function renderShop(c){
   c.innerHTML=`
     <div style="position:relative;margin-bottom:10px">
       <i class="ti ti-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;pointer-events:none"></i>
-      <input type="text" id="shopSearch" placeholder="搜尋品項…" value="${shopSearchQ}" oninput="setShopSearch(this.value)" style="padding-left:36px;background:var(--surface);border-color:var(--border)">
+      <input type="text" id="shopSearch" placeholder="搜尋品項…" value="${shopSearchQ}" style="padding-left:36px;background:var(--surface);border-color:var(--border)">
     </div>
     <div style="display:flex;gap:3px;background:var(--surface2);padding:3px;border-radius:12px;margin-bottom:12px">
       <button class="shop-mode-btn ${shopTab==='need'?'active':''}" onclick="setShopTab('need')">
@@ -613,14 +613,45 @@ function renderShop(c){
       </button>
     </div>
     <div class="chip-row">${allSrcs.map(s=>`<button class="chip ${s===activeSrc?'active':''}" onclick="setSrc('${s}')">${s==='all'?'全部來源':s}</button>`).join('')}</div>
-    ${shown.length===0
-      ?`<div class="empty"><i class="ti ti-circle-check" style="color:var(--green)"></i>${shopTab==='need'?'此來源無需採購物品':'沒有庫存正常的品項'}</div>`
-      :Object.entries(byCat).map(([cat,list])=>`
-        <div class="shop-section-label"><span class="cat-dot" style="background:${catColor(cat)}"></span>${cat}</div>
-        ${list.map(item=>shopCard(item,shopTab==='ok')).join('')}`).join('')}`;
+    <div id="shopItemsArea"></div>`;
+  renderShopItems();
+  bindShopSearch();
 }
-function setShopTab(t){shopTab=t;renderShop()}
+
+function renderShopItems(){
+  const el=document.getElementById('shopItemsArea');
+  if(!el)return;
+  const need=DATA.items.filter(i=>itemStatus(i)!=='ok');
+  const okItems=DATA.items.filter(i=>itemStatus(i)==='ok');
+  const list=shopTab==='need'?need:okItems;
+  const allSrcs=['all',...new Set(need.flatMap(i=>toArr(i.sources)))];
+  const shown=(activeSrc==='all'?list:list.filter(i=>toArr(i.sources).includes(activeSrc))).filter(i=>!shopSearchQ||i.name.includes(shopSearchQ));
+  const byCat={};
+  shown.forEach(i=>{if(!byCat[i.cat])byCat[i.cat]=[];byCat[i.cat].push(i)});
+  el.innerHTML=shown.length===0
+    ?`<div class="empty"><i class="ti ti-circle-check" style="color:var(--green)"></i>${shopTab==='need'?'此來源無需採購物品':'沒有庫存正常的品項'}</div>`
+    :Object.entries(byCat).map(([cat,list])=>`
+      <div class="shop-section-label"><span class="cat-dot" style="background:${catColor(cat)}"></span>${cat}</div>
+      ${list.map(item=>shopCard(item,shopTab==='ok')).join('')}`).join('');
+}
+function setShopTab(t){shopTab=t;if(document.getElementById('shopItemsArea'))renderShopItems();else renderShop();}
 function setShopSearch(q){shopSearchQ=q;renderShop()}
+function bindShopSearch(){
+  const el=document.getElementById('shopSearch');
+  if(!el)return;
+  let composing=false;
+  el.addEventListener('compositionstart',()=>{composing=true});
+  el.addEventListener('compositionend',()=>{
+    composing=false;
+    shopSearchQ=el.value;
+    // re-render but preserve input
+    const q=el.value;
+    renderShopItems();
+  });
+  el.addEventListener('input',()=>{
+    if(!composing){shopSearchQ=el.value;renderShopItems();}
+  });
+}
 function shopCard(item,isOk){
   const s=itemStatus(item);
   const suggest=item.reorder?item.reorder:item.min+1;
@@ -663,7 +694,7 @@ function toggleRestock(id){
   const panel=document.getElementById('rp-'+id);
   panel.classList.toggle('open');
 }
-function setSrc(s){activeSrc=s;renderShop()}
+function setSrc(s){activeSrc=s;if(document.getElementById('shopItemsArea'))renderShopItems();else renderShop();}
 
 function toggleShopCny(id){
   shopCnyModes[id]=!shopCnyModes[id];
@@ -1204,7 +1235,7 @@ Object.assign(window,{
   openBrandAc,closeBrandAc,filterBrandAc,pickBrand,
   renderCost,setCostRange,clearCostRange,delCost,openCostEdit,saveCostEdit,exportCost,
   renderSettings,addCat,addSrc,delSettingItem,startEditName,finishEditName,
-  closeModal,setShopSearch,
+  closeModal,setShopSearch,bindShopSearch,renderShopItems,
 });
 </script>
 </body>
