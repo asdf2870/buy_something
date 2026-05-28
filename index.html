@@ -333,7 +333,10 @@ input[type=color]{width:40px;height:40px;padding:3px;border-radius:8px;border:0.
     <div class="modal-handle"></div>
     <div style="padding:0 16px 10px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:17px;font-weight:600" id="dt-title"></span>
-      <button class="btn primary sm" id="dt-add-btn" onclick="openBrandForm()"><i class="ti ti-plus"></i> 新增品牌</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn primary sm" id="dt-add-btn" onclick="openBrandForm()"><i class="ti ti-plus"></i> 新增品牌</button>
+        <button class="btn sm" id="dt-record-btn" style="display:none" onclick="openBuyFromDetail()"><i class="ti ti-cash"></i> 記帳</button>
+      </div>
     </div>
     <div class="dt-tabs">
       <button class="dt-tab active" id="dt-tab-brand" onclick="switchDetailTab('brand')">品牌筆記</button>
@@ -448,9 +451,9 @@ let starVal = 0;
 let activeSrc = 'all';
 let activeCatFilter = 'all';
 let activeStatusFilter = 'all';
-let cnyRate = 4.4; // default CNY→TWD rate
-let bCnyMode = false; // buy modal CNY mode
-let shopCnyModes = {}; // per-item CNY mode in shop
+let cnyRate = 4.4;
+let bCnyMode = false;
+let shopCnyModes = {};
 let editCostId = null;
 let dragSrc = null;
 let costRangeFrom = '';
@@ -586,7 +589,7 @@ function saveItem(){
 function delItem(id){if(!confirm('確定刪除？'))return;DATA.items=DATA.items.filter(i=>i.id!==id);save();renderInv();showToast('已刪除')}
 
 // ── Shopping ─────────────────────────────────────────────────────────────
-let shopTab='need'; // 'need' | 'ok'
+let shopTab='need';
 let shopSearchQ='';
 
 function renderShop(c){
@@ -624,7 +627,6 @@ function renderShopItems(){
   const need=DATA.items.filter(i=>itemStatus(i)!=='ok');
   const okItems=DATA.items.filter(i=>itemStatus(i)==='ok');
   const list=shopTab==='need'?need:okItems;
-  const allSrcs=['all',...new Set(need.flatMap(i=>toArr(i.sources)))];
   const shown=(activeSrc==='all'?list:list.filter(i=>toArr(i.sources).includes(activeSrc))).filter(i=>!shopSearchQ||i.name.includes(shopSearchQ));
   const byCat={};
   shown.forEach(i=>{if(!byCat[i.cat])byCat[i.cat]=[];byCat[i.cat].push(i)});
@@ -644,8 +646,6 @@ function bindShopSearch(){
   el.addEventListener('compositionend',()=>{
     composing=false;
     shopSearchQ=el.value;
-    // re-render but preserve input
-    const q=el.value;
     renderShopItems();
   });
   el.addEventListener('input',()=>{
@@ -811,15 +811,12 @@ function pickItem(name,id){document.getElementById('b-item').value=name;closeIpL
 
 let brandAcCtxItemId={};
 function getBrandsForCtx(ctx){
-  // find item id from context
   let id=brandAcCtxItemId[ctx];
   if(!id){
-    // try to find by name in b-item
     const name=document.getElementById('b-item')?.value||document.getElementById('b-brand')?.value||'';
     const found=DATA.items.find(i=>i.name===name);
     id=found?found.id:null;
   }
-  // collect all brands from all items
   return [...new Set(DATA.items.flatMap(i=>toArr(i.brands).map(b=>b.name)))];
 }
 function openBrandAc(ctx){const brands=getBrandsForCtx(ctx);renderBrandAc(brands,'',ctx);document.getElementById('brandAc-'+ctx)?.classList.add('open')}
@@ -838,11 +835,27 @@ function renderBrandAc(brands,q,ctx){
   if(!brands.length)el.classList.remove('open');
 }
 function pickBrand(name,ctx){
-  // find input for this context
   const inputId=ctx.startsWith('shop-')?'rbrand-'+ctx.replace('shop-',''):'b-brand';
   const el=document.getElementById(inputId);
   if(el)el.value=name;
   closeBrandAc(ctx);
+}
+
+// ── openBuyFromDetail — 從詳細頁購買記錄直接記帳 ─────────────────────────
+function openBuyFromDetail(){
+  const item=DATA.items.find(i=>i.id===detailItemId);
+  if(!item)return;
+  closeModal('detailModal');
+  openBuyModal();
+  // 預填物品名稱
+  const nameInput=document.getElementById('b-item');
+  if(nameInput){ nameInput.value=item.name; filterBrandAc('','buy',item.id); }
+  // 預選第一個採購來源
+  const src=toArr(item.sources)[0];
+  if(src){
+    const sel=document.getElementById('b-src');
+    if(sel)sel.value=src;
+  }
 }
 
 function openBuyModal(){
@@ -1078,7 +1091,6 @@ function initDragSort(listId,type){
     const handle=item.querySelector('.sortable-handle');
     if(!handle)return;
 
-    // Desktop drag
     item.setAttribute('draggable','true');
     item.addEventListener('dragstart',e=>{dragSrc=item;item.style.opacity='.4';e.dataTransfer.effectAllowed='move'});
     item.addEventListener('dragend',()=>{item.style.opacity='';commitOrder()});
@@ -1088,7 +1100,6 @@ function initDragSort(listId,type){
       list.insertBefore(dragSrc,e.clientY<r.top+r.height/2?item:item.nextSibling);
     });
 
-    // Mobile touch
     handle.addEventListener('touchstart',e=>{
       dragging=item;
       startY=e.touches[0].clientY;
@@ -1129,7 +1140,9 @@ function switchDetailTab(tab){
   document.getElementById('dt-tab-brand').classList.toggle('active',tab==='brand');
   document.getElementById('dt-tab-history').classList.toggle('active',tab==='history');
   const btn=document.getElementById('dt-add-btn');
+  const histBtn=document.getElementById('dt-record-btn');
   if(btn)btn.style.display=tab==='brand'?'':'none';
+  if(histBtn)histBtn.style.display=tab==='history'?'':'none';
   if(tab==='brand')renderBrands();else renderPurchaseHistory();
 }
 function renderBrands(){
@@ -1228,7 +1241,7 @@ function delBrand(idx){
 // ── Expose globals ────────────────────────────────────────────────────────
 Object.assign(window,{
   showPage,chQty,openItemModal,saveItem,delItem,setCatF,setStatusF,
-  openDetail,switchDetailTab,openBrandForm,setStar,saveBrand,delBrand,
+  openDetail,switchDetailTab,openBrandForm,setStar,saveBrand,delBrand,openBuyFromDetail,
   setSrc,setShopTab,toggleRestock,toggleShopCny,updateShopWeightHint,doRestock,
   exportShopping,openBuyModal,saveBuy,toggleCny,updateWeightHint,updateCnyHint,
   openIpList,closeIpList,toggleIpList,filterIpList,pickItem,
