@@ -982,7 +982,36 @@ function saveCostEdit(){
   co.note=document.getElementById('ce-note').value.trim();
   co.unitPrice=co.qty>0&&co.amount>0?Math.round(co.amount/co.qty):null;
   co.note=co.brand?`品牌：${co.brand}`:co.note;
-  save();closeModal('costEditModal');renderCost();showToast('已更新');
+  save();closeModal('costEditModal');
+  if(window._costEditFromDetail){
+    window._costEditFromDetail=false;
+    renderPurchaseHistory();
+  } else {
+    renderCost();
+  }
+  showToast('已更新');
+}
+
+// ── openBuyFromBrand — 從品牌筆記直接記帳 ────────────────────────────────
+function openBuyFromBrand(brandName){
+  const item=DATA.items.find(i=>i.id===detailItemId);
+  if(!item)return;
+  closeModal('detailModal');
+  openBuyModal();
+  document.getElementById('b-item').value=item.name;
+  document.getElementById('b-brand').value=brandName;
+  filterBrandAc(brandName,'buy',item.id);
+  // 預選品牌對應的來源
+  const brand=toArr(item.brands).find(b=>b.name===brandName);
+  const src=(brand&&brand.src)||toArr(item.sources)[0]||'';
+  if(src){
+    const sel=document.getElementById('b-src');
+    if(sel)sel.value=src;
+  }
+  // 預填品牌單價
+  if(brand&&brand.price){
+    document.getElementById('b-amount').value=brand.price;
+  }
 }
 function exportCost(){
   const all=toArr(DATA.costs).filter(co=>{
@@ -1153,10 +1182,12 @@ function renderBrands(){
   el.innerHTML=brands.map((b,i)=>{
     const stars='★'.repeat(b.star||0)+'☆'.repeat(5-(b.star||0));
     const col=(b.star||0)>0?'#f59e0b':'#ccc';
+    const bNameEsc=b.name.replace(/'/g,"\\'");
     return`<div class="brand-card">
       <div class="brand-header">
         <div><div class="brand-name">${b.name}</div><div class="brand-stars" style="color:${col}">${stars}</div></div>
         <div style="display:flex;gap:6px">
+          <button class="btn primary sm" onclick="openBuyFromBrand('${bNameEsc}')"><i class="ti ti-cash"></i> 記帳</button>
           <button class="btn sm" onclick="openBrandForm(${i})"><i class="ti ti-edit"></i></button>
           <button class="btn sm danger-outline" onclick="delBrand(${i})"><i class="ti ti-trash"></i></button>
         </div>
@@ -1183,18 +1214,35 @@ function renderPurchaseHistory(){
     </div>
     ${costs.map(co=>{
       const unit=co.qty>0&&co.amount>0?Math.round(co.amount/co.qty):null;
-      return`<div class="purchase-row">
+      return`<div class="purchase-row" style="align-items:center">
         <div class="purchase-date">${(co.date||'').replace(/^\d{4}-/,'')}</div>
         <div class="purchase-info">
           <div style="font-size:14px;font-weight:500">× ${co.qty} ${item.unit}${co.brand?` <span class="src-tag">${co.brand}</span>`:''}</div>
           <div style="font-size:12px;color:var(--text3)">${co.src||''}${co.per100g?' · 每百克 NT$'+(Number.isInteger(co.per100g)?co.per100g:co.per100g.toFixed(2)):''}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;flex-shrink:0">
           <div class="purchase-amount">NT$ ${(co.amount||0).toLocaleString()}</div>
           ${unit?`<div class="purchase-unit">單價 NT$${unit}</div>`:''}
         </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;margin-left:4px">
+          <button class="btn icon sm" onclick="openCostEditFromDetail(${co.id})" title="編輯"><i class="ti ti-edit" style="font-size:13px"></i></button>
+          <button class="btn icon sm danger-outline" onclick="delCostFromDetail(${co.id})" title="刪除"><i class="ti ti-trash" style="font-size:13px"></i></button>
+        </div>
       </div>`;
     }).join('')}`;
+}
+function delCostFromDetail(id){
+  if(!confirm('確定刪除這筆記錄？'))return;
+  DATA.costs=(DATA.costs||[]).filter(c=>c.id!==id);
+  save();
+  renderPurchaseHistory();
+  showToast('已刪除');
+}
+function openCostEditFromDetail(id){
+  // 記住目前在 detail modal，編輯完後刷新購買記錄
+  openCostEdit(id);
+  // 覆寫 saveCostEdit 完成後的行為：改成刷新購買記錄
+  window._costEditFromDetail=true;
 }
 function openBrandForm(idx){
   editBrandIdx=(idx!==undefined)?idx:null;
@@ -1241,7 +1289,8 @@ function delBrand(idx){
 // ── Expose globals ────────────────────────────────────────────────────────
 Object.assign(window,{
   showPage,chQty,openItemModal,saveItem,delItem,setCatF,setStatusF,
-  openDetail,switchDetailTab,openBrandForm,setStar,saveBrand,delBrand,openBuyFromDetail,
+  openDetail,switchDetailTab,openBrandForm,setStar,saveBrand,delBrand,openBuyFromDetail,openBuyFromBrand,
+  delCostFromDetail,openCostEditFromDetail,
   setSrc,setShopTab,toggleRestock,toggleShopCny,updateShopWeightHint,doRestock,
   exportShopping,openBuyModal,saveBuy,toggleCny,updateWeightHint,updateCnyHint,
   openIpList,closeIpList,toggleIpList,filterIpList,pickItem,
