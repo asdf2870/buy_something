@@ -985,7 +985,13 @@ function saveCostEdit(){
   save();closeModal('costEditModal');
   if(window._costEditFromDetail){
     window._costEditFromDetail=false;
-    renderPurchaseHistory();
+    // 重開 detailModal 並刷新購買記錄
+    const item=DATA.items.find(i=>i.id===detailItemId);
+    if(item){
+      document.getElementById('dt-title').textContent=item.name;
+      document.getElementById('detailModal').classList.add('open');
+      switchDetailTab('history');
+    }
   } else {
     renderCost();
   }
@@ -1239,10 +1245,9 @@ function delCostFromDetail(id){
   showToast('已刪除');
 }
 function openCostEditFromDetail(id){
-  // 記住目前在 detail modal，編輯完後刷新購買記錄
-  openCostEdit(id);
-  // 覆寫 saveCostEdit 完成後的行為：改成刷新購買記錄
+  closeModal('detailModal');
   window._costEditFromDetail=true;
+  openCostEdit(id);
 }
 function openBrandForm(idx){
   editBrandIdx=(idx!==undefined)?idx:null;
