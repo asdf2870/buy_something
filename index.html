@@ -235,7 +235,7 @@ input[type=color]{width:40px;height:40px;padding:3px;border-radius:8px;border:0.
         <div class="form-row"><label>分類</label><select id="f-cat"></select></div>
         <div class="form-row"><label>單位</label><input type="text" id="f-unit" placeholder="瓶、包、罐"></div>
         <div class="form-row"><label>目前庫存</label><input type="number" id="f-qty" min="0" inputmode="numeric"></div>
-        <div class="form-row"><label>補貨門檻</label><input type="number" id="f-min" min="0" inputmode="numeric"></div>
+        <div class="form-row"><label>補貨門檻</label><input type="number" id="f-min" min="0" inputmode="numeric" placeholder="0"></div>
       </div>
       <div class="form-row"><label>建議補貨量（選填）</label><input type="number" id="f-reorder" min="0" inputmode="numeric" placeholder="每次買幾個"></div>
       <div class="form-row"><label>採購來源（可複選）</label><div class="checkbox-group" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0" id="f-src-group"></div></div>
@@ -573,7 +573,7 @@ function openItemModal(id){
   } else {
     document.getElementById('itemModalTitle').textContent='新增物品';
     ['f-name','f-unit','f-reorder'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('f-qty').value='0';document.getElementById('f-min').value='2';
+    document.getElementById('f-qty').value='0';document.getElementById('f-min').value='0';
   }
   document.getElementById('itemModal').classList.add('open');
 }
@@ -581,7 +581,7 @@ function saveItem(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){alert('請填物品名稱');return}
   const srcs=[...document.querySelectorAll('#f-src-group input:checked')].map(c=>c.value);
-  const obj={id:editItemId||nextItemId++,name,cat:document.getElementById('f-cat').value,unit:document.getElementById('f-unit').value.trim()||'個',qty:parseInt(document.getElementById('f-qty').value)||0,min:parseInt(document.getElementById('f-min').value)||1,reorder:parseInt(document.getElementById('f-reorder').value)||null,sources:srcs,brands:editItemId?(DATA.items.find(i=>i.id===editItemId)||{brands:[]}).brands:[]};
+  const obj={id:editItemId||nextItemId++,name,cat:document.getElementById('f-cat').value,unit:document.getElementById('f-unit').value.trim()||'個',qty:parseInt(document.getElementById('f-qty').value)||0,min:parseInt(document.getElementById('f-min').value)||0,reorder:parseInt(document.getElementById('f-reorder').value)||null,sources:srcs,brands:editItemId?(DATA.items.find(i=>i.id===editItemId)||{brands:[]}).brands:[]};
   if(editItemId)DATA.items=DATA.items.map(i=>i.id===editItemId?obj:i);
   else DATA.items.push(obj);
   save();closeModal('itemModal');renderInv();showToast(editItemId?'已更新':'已新增');
